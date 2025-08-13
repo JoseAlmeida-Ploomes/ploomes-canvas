@@ -7,7 +7,8 @@ import {
   Settings, 
   Users,
   Activity,
-  ChevronDown
+  ChevronDown,
+  Workflow
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
@@ -27,6 +28,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 const mainItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "New Project", url: "/projects/new", icon: FolderPlus },
+  { title: "Modeler", url: "/modeler", icon: Workflow },
 ];
 
 const projectItems = [

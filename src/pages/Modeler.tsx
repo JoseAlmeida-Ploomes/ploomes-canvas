@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import BpmnModeler from "bpmn-js/lib/Modeler";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, Download, Save, FileX } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { BpmnPalette } from "@/components/modeler/BpmnPalette";
+import { BpmnToolbar } from "@/components/modeler/BpmnToolbar";
+import { BpmnCanvas } from "@/components/modeler/BpmnCanvas";
 
 // Default BPMN 2.0 XML template
 const DEFAULT_BPMN_XML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -21,45 +21,26 @@ const DEFAULT_BPMN_XML = `<?xml version="1.0" encoding="UTF-8"?>
 </bpmn:definitions>`;
 
 export default function Modeler() {
-  const containerRef = useRef<HTMLDivElement>(null);
   const modelerRef = useRef<BpmnModeler | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (!containerRef.current) return;
-
-    // Initialize BPMN Modeler
-    const modeler = new BpmnModeler({
-      container: containerRef.current,
-      keyboard: {
-        bindTo: window
-      }
+  const handleModelerLoad = () => {
+    setIsLoaded(true);
+    toast({
+      title: "Modeler Ready",
+      description: "BPMN 2.0 Modeler has been initialized successfully."
     });
+  };
 
-    modelerRef.current = modeler;
-
-    // Load default diagram
-    modeler.importXML(DEFAULT_BPMN_XML).then(() => {
-      setIsLoaded(true);
-      toast({
-        title: "Modeler Ready",
-        description: "BPMN 2.0 Modeler has been initialized successfully."
-      });
-    }).catch((err) => {
-      console.error('Error loading default diagram:', err);
-      toast({
-        title: "Error",
-        description: "Failed to initialize the modeler.",
-        variant: "destructive"
-      });
+  const handleModelerError = (error: string) => {
+    toast({
+      title: "Error",
+      description: error,
+      variant: "destructive"
     });
-
-    return () => {
-      modeler.destroy();
-    };
-  }, [toast]);
+  };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -149,81 +130,58 @@ export default function Modeler() {
     });
   };
 
+  const handleValidate = () => {
+    if (!modelerRef.current) return;
+    
+    // Basic BPMN validation
+    modelerRef.current.saveXML({ format: true }).then(({ xml }) => {
+      // Check for basic BPMN structure
+      const hasDefinitions = xml.includes('<bpmn:definitions');
+      const hasProcess = xml.includes('<bpmn:process');
+      const hasStartEvent = xml.includes('startEvent');
+      const hasEndEvent = xml.includes('endEvent');
+      
+      if (hasDefinitions && hasProcess && hasStartEvent && hasEndEvent) {
+        toast({
+          title: "Validation Successful",
+          description: "BPMN diagram structure is valid."
+        });
+      } else {
+        toast({
+          title: "Validation Failed",
+          description: "BPMN diagram is missing required elements.",
+          variant: "destructive"
+        });
+      }
+    }).catch(() => {
+      toast({
+        title: "Validation Error",
+        description: "Failed to validate the diagram.",
+        variant: "destructive"
+      });
+    });
+  };
+
   return (
     <div className="h-full flex flex-col">
-      <div className="border-b border-border bg-background p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-foreground">BPMN Modeler</h1>
-            <p className="text-sm text-muted-foreground">Create and edit BPMN 2.0 diagrams</p>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleNewDiagram}
-              disabled={!isLoaded}
-            >
-              <FileX className="w-4 h-4 mr-2" />
-              New
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => fileInputRef.current?.click()}
-              disabled={!isLoaded}
-            >
-              <Upload className="w-4 h-4 mr-2" />
-              Upload
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleDownload}
-              disabled={!isLoaded}
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Download
-            </Button>
-            
-            <Button 
-              size="sm" 
-              onClick={handleSave}
-              disabled={!isLoaded}
-            >
-              <Save className="w-4 h-4 mr-2" />
-              Save
-            </Button>
-          </div>
-        </div>
-      </div>
+      <BpmnToolbar
+        isLoaded={isLoaded}
+        onNew={handleNewDiagram}
+        onUpload={() => fileInputRef.current?.click()}
+        onDownload={handleDownload}
+        onSave={handleSave}
+        onValidate={handleValidate}
+      />
 
-      <div className="flex-1 relative">
-        {!isLoaded && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-10">
-            <Card className="w-96">
-              <CardHeader>
-                <CardTitle>Loading Modeler</CardTitle>
-                <CardDescription>
-                  Initializing BPMN 2.0 modeler...
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="w-full bg-secondary rounded-full h-2">
-                  <div className="bg-primary h-2 rounded-full animate-pulse" style={{ width: '60%' }}></div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+      <div className="flex-1 flex">
+        <BpmnPalette />
         
-        <div 
-          ref={containerRef} 
-          className="w-full h-full bg-background"
-          style={{ minHeight: '600px' }}
+        <BpmnCanvas
+          isLoaded={isLoaded}
+          modelerRef={modelerRef}
+          onLoad={handleModelerLoad}
+          onError={handleModelerError}
+          defaultXml={DEFAULT_BPMN_XML}
         />
       </div>
 
